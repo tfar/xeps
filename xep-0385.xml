@@ -10,6 +10,12 @@ TODO:
   - Example showing component cache usage
   - encrypted files
   - 3rdParty hosted reference (GDrive, Dropbox, etc.)
+  - SIMS and MIX and server audit/virus check
+  - SIMS and MIX and strong media access control
+  - Section on Thumbnails, use of BOB is required, HTTP File Upload and ni:// URIs MAY also be used
+  - hashes use Base64 encoding
+  - normative text for media-sharing element
+  - text about privacy issues in relation to some transport mechanisms
 -->
 <header>
   <title>Stateless Inline Media Sharing (SIMS)</title>
@@ -23,14 +29,23 @@ TODO:
   <dependencies>
     <spec>XMPP Core</spec>
     <spec>XEP-0001</spec>
+    <spec>XEP-0231</spec>
     <spec>XEP-0234</spec>
+    <spec>XEP-0370</spec>
     <spec>XEP-0300</spec>
     <spec>XEP-0363</spec>
+    <spec>RFC 6920</spec>
   </dependencies>
   <supersedes/>
   <supersededby/>
   <shortname>sims</shortname>
   &tobias;
+  <revision>
+    <version>0.1.1</version>
+    <date>2017-01-08</date>
+    <initials>tm</initials>
+    <remark><p>Add example without body text, specify strong access control and media auditing in MUC/MIX, and lots of small fixes.</p></remark>
+  </revision>
   <revision>
     <version>0.1.0</version>
     <date>2017-01-04</date>
@@ -48,7 +63,7 @@ TODO:
   <p>File sharing in XMPP has mainly been addressed by synchronous solutions like &xep0096; and &xep0234;.
     However, these extensions only address the transfer of files and there is more to file sharing than the simple transfer of the data.</p>
   <p>Extentions that go beyond the simple transfer of data are &xep0329; and &xep0363;. XEP-0329 allows sharing folder structures to other users, allowing them to browse the remote folder and fetch interesting files using existing file-transfer protocols. XEP-0363 describes a protocol to ask a server component for a HTTP storage URL where a client can use HTTP PUT to save a file to and afterwards share the public URL with other users to share the file. While this provides some form of asynchronus file sharing it does not provide integrity protection and requires a server component.</p>
-  <p>This proposal aims to provide a protocol that will enable XMPP clients to implement a great user experience (UX) around the process of sharing media in conversations. Shared media can take any form of static media like photos, videos, documents, compresses archives, etc.
+  <p>This proposal aims to provide a protocol that will enable XMPP clients to implement a great user experience (UX) around the process of sharing media in conversations. Shared media can take any form of static media like photos, videos, documents, compressed archives, etc.
   This is directly refelected in the requirents of this extension lined out in the following sections.</p>
 </section1>
 <section1 topic='Related XEPs' anchor='related'>
@@ -57,9 +72,9 @@ TODO:
     <p>&xep0231; is designed for small media, i.e. less than 8 KB in size, that is hosted server-side and transferred Base64 encoded in-band of an existing XMPP stream. Example use-cases are custom emoticons that are referenced in &xep0071; img-tags, or thumbnails for &xep0234;.</p>
   </section2>
   <section2 topic='Jingle File Transfer'>
-    <p>&xep0231; describes a peer-to-peer protocol for synchronous file-transfer between two XMPP entities. It attempts a direct transmission, followed by a proxied transmission, via &xep0260;. If neither works it will fallback to &xep0261; which will transfer the data inband of the exsiting XMPP stream.</p>
+    <p>&xep0234; describes a peer-to-peer protocol for synchronous file-transfer between two XMPP entities. It attempts a direct transmission, followed by a proxied transmission, via &xep0260;. If neither works it will fallback to &xep0261; which will transfer the data inband of the exsiting XMPP stream.</p>
   </section2>
-  <section2 topic='HTTP File Update'>
+  <section2 topic='HTTP File Upload'>
     <p>&xep0363; was designed as a simpler to implement alternative to &xep0231;. This is achieved by reusing the HTTP APIs in todays mobile and language SDKs. It requires a server component where clients can request HTTP URLs to upload data to and share the corresponding download URL as part of plain text in a conversation.</p>
   </section2>
   <section2 topic='Comparison of File Transfer Protocols'>
@@ -104,33 +119,38 @@ TODO:
   </section2>
 </section1>
 <section1 topic='Requirements' anchor='reqs'>
-  <ul>
-    <li>Not require server components to work to ease deployment</li>
-    <li>Can be improved by server components for taking load of clients</li>
-    <li>Media sharing should work and enable a good UX in multi-user chats like &xep0045; and &xep0369;</li>
-    <li>Media sharing should work great together with conversation synchronization protocols like &xep0280; and &xep0313;</li>
+  <p><ul>
+    <li>MUST NOT require server components to work to ease deployment</li>
+    <li>MAY be improved by server components for taking load of clients</li>
+    <li>Media sharing SHOULD work and enable a good UX in multi-user chats like &xep0045; and &xep0369;</li>
+    <li>MUST enable strong access control to shared media in MUC/MIX</li>
+    <li>Media sharing SHOULD work great together with conversation synchronization protocols like &xep0280; and &xep0313;</li>
     <li>Reuse exiting protocols for the actual transport of the data, i.e. &xep0096;, &xep0234; or &xep0363;</li>
-    <li>Guarantee file integrity</li>
-    <li>Enable aggresive caching</li>
-    <li>Provide users with metadata, e.g. file size, file type or thumbnail, to help them decide whether or not they want to load the media file</li>
-    <li>Support referring to third party hosting services</li>
-  </ul>
+    <li>MUST guarantee file integrity</li>
+    <li>SHOULD support aggresive caching</li>
+    <li>MUST provide users with metadata, e.g. file size, file type or thumbnail, to help them decide whether or not they want to load the media file</li>
+    <li>MUST support referring to third party hosting services</li>
+  </ul></p>
+</section1>
+<section1 topic='Application Format' anchor='appformat'>
+  <p>This XEP introduces two new XML elements, i.e. &lt;media-sharing&gt; and &lt;sources&gt;.</p>
+  <p>The &lt;media-sharing&gt;-element can be used next to the &lt;body&gt;-element or similar in any kind of XMPP message or IQ stanza. It represents a single media file that is shared and MAY be multiple &lt;media-sharing&gt; in a top-level stanza.</p>
 </section1>
 <section1 topic='Use Cases' anchor='usecases'>
-  <section2 topic='Sharing a photo' anchor='usecases-sending-photo'>
+  <section2 topic='Sharing a photo in a one-to-one chat' anchor='usecases-sending-photo-one-to-one'>
   <p>To share a photo, or any kind of media, a user sends a message stanza to the contact. If the message has an empty body, it is recommended
   to add a message processing hint, see &xep0334;, to indicate the message to be stored in message stores like &xep0313;.</p>
   <p>Clients supporting &xep0363; can upload the media file to a HTTP service and add the corresponding HTTP URL to the sources.</p>
-  <example caption='Sharing an image with a contact'><![CDATA[<message to='julient@shakespeare.lit' from='romeo@montague.lit'>
+  <example caption='Sending a message alongside a shared photo'><![CDATA[<message to='julient@shakespeare.lit' from='romeo@montague.lit'>
   <body>Look at the nice view from the summit.</body>
   <reference xmlns='urn:xmpp:reference:0' begin='17' end='20' type='data'>
     <media-sharing xmlns='urn:xmpp:sims:1'>
       <file xmlns='urn:xmpp:jingle:apps:file-transfer:4'>
-        <media-type>image/jpeg</media>
+        <media-type>image/jpeg</media-type>
         <name>summit.jpg</name>
         <size>3032449</size>
-        <hash xmlns='urn:xmpp:hashes:1' algo='sha3-256'>a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a</hash>
-        <hash xmlns='urn:xmpp:hashes:1' algo='id-blake2b256'>a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a</hash>
+        <hash xmlns='urn:xmpp:hashes:1' algo='sha3-256'>2XarmwTlNxDAMkvymloX3S5+VbylNrJt/l5QyPa+YoU=</hash>
+        <hash xmlns='urn:xmpp:hashes:1' algo='id-blake2b256'>2XarmwTlNxDAMkvymloX3S5+VbylNrJt/l5QyPa+YoU=</hash>
         <desc>Photo from the summit.</desc>
         <thumbnail xmlns='urn:xmpp:thumbs:1'uri='cid:sha1+ffd7c8d28e9c5e82afea41f97108c6b4@bob.xmpp.org' media-type='image/png' width='128' height='96'/>
       </file>
@@ -140,9 +160,80 @@ TODO:
       </sources>
     </media-sharing>
   </reference>
+  <data xmlns='urn:xmpp:bob'
+        cid='sha1+ffd7c8d28e9c5e82afea41f97108c6b4@bob.xmpp.org'
+        max-age='86400'
+        type='image/jpeg'>
+    iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAABGdBTUEAALGP
+    C/xhBQAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9YGARc5KB0XV+IA
+    AAAddEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIFRoZSBHSU1Q72QlbgAAAF1J
+    REFUGNO9zL0NglAAxPEfdLTs4BZM4DIO4C7OwQg2JoQ9LE1exdlYvBBeZ7jq
+    ch9//q1uH4TLzw4d6+ErXMMcXuHWxId3KOETnnXXV6MJpcq2MLaI97CER3N0
+    vr4MkhoXe0rZigAAAABJRU5ErkJggg==
+  </data>
 </message>]]></example>
-  <p>The file element is the same as from &xep0234;. It MUST specify media-type, size, description, and one or multiple hash elements as described in &xep0300;.
+  <p>The file element is the same as from &xep0234;. It MUST specify media-type, name, size, and one or multiple hash elements as described in &xep0300;. The name is required to at least contain the filename extension, e.g. '.jpeg', so that a UI can suggest the correct extension to a user. The specification of a desc element is RECOMMENDED as it improves accessibility for users using screenreaders.
   The hash elements are essential as they provide end-to-end file integrity and allow efficient caching and flexible retrieval methods.</p>
+  <p>Alternatively, if a user only wants to share media unrelated to an existing text message it can also leave out the &lt;body&gt; tag and the <em>begin</em> and <em>end</em> attributes from the &lt;reference&gt; tag.</p>
+    <example caption='Sharing only a photo'><![CDATA[<message to='julient@shakespeare.lit' from='romeo@montague.lit'>
+  <store xmlns="urn:xmpp:hints"/>
+  <reference xmlns='urn:xmpp:reference:0' type='data'>
+    <media-sharing xmlns='urn:xmpp:sims:1'>
+      <file xmlns='urn:xmpp:jingle:apps:file-transfer:4'>
+        <media-type>image/jpeg</media-type>
+        <name>summit.jpg</name>
+        <size>3032449</size>
+        <hash xmlns='urn:xmpp:hashes:1' algo='sha3-256'>2XarmwTlNxDAMkvymloX3S5+VbylNrJt/l5QyPa+YoU=</hash>
+        <hash xmlns='urn:xmpp:hashes:1' algo='id-blake2b256'>2XarmwTlNxDAMkvymloX3S5+VbylNrJt/l5QyPa+YoU=</hash>
+        <desc>Photo from the summit.</desc>
+        <thumbnail xmlns='urn:xmpp:thumbs:1'uri='cid:sha1+ffd7c8d28e9c5e82afea41f97108c6b4@bob.xmpp.org' media-type='image/png' width='128' height='96'/>
+      </file>
+      <sources>
+        <reference xmlns='urn:xmpp:reference:0' type='data' uri='https://download.montague.lit/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/summit.jpg' />
+        <reference xmlns='urn:xmpp:reference:0' type='data' uri='xmpp:romeo@montague.lit/resource?jingle;id=9559976B-3FBF-4E7E-B457-2DAA225972BB' />
+      </sources>
+    </media-sharing>
+  </reference>
+  <data xmlns='urn:xmpp:bob'
+        cid='sha1+ffd7c8d28e9c5e82afea41f97108c6b4@bob.xmpp.org'
+        max-age='86400'
+        type='image/jpeg'>
+    iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAABGdBTUEAALGP
+    C/xhBQAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9YGARc5KB0XV+IA
+    AAAddEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIFRoZSBHSU1Q72QlbgAAAF1J
+    REFUGNO9zL0NglAAxPEfdLTs4BZM4DIO4C7OwQg2JoQ9LE1exdlYvBBeZ7jq
+    ch9//q1uH4TLzw4d6+ErXMMcXuHWxId3KOETnnXXV6MJpcq2MLaI97CER3N0
+    vr4MkhoXe0rZigAAAABJRU5ErkJggg==
+  </data>
+</message>]]></example>
+  <p>The above example shows sharing of a single photo. Unless explicitly specified otherwise by the user, clients SHOULD add &xep0334; &lt;store&gt; elements to the message, since bodyless messages do not qualify for MAM storage by default.</p>
+  </section2>
+  <section2 topic='Sharing media in MUC and MIX with strong access control' anchor='media_share_strong_access_control'>
+    <p>Some deployment environments might require strong access control, and media auditing and verification, when it comes to sharing media with a group of people. In practise this group of people can be a MUC room or a MIX channel.</p>
+    <p>SIMS allows for flexible and indepenent lookup of data sources by clients. Strong media access control and central auditing and checking for malicious data are goals in conflict with that idea. The solution to this issue is similar to the idea of <span class='ref'><link url='http://www.bittorrent.org/beps/bep_0027.html'>BEP 27</link></span> <note>BEP 27: Private Torrents &lt;<link url='http://www.bittorrent.org/beps/bep_0027.html'>http://www.bittorrent.org/beps/bep_0027.html</link>&gt;.</note></p>
+    <p>The &lt;sources&gt; element in the &lt;media-sharing&gt; element MAY have an optional boolean 'private' attribute, which defaults to <em>false</em>. If the attribute is present and set to value equivalent to <em>true</em>, a standard-compliant SIMS client MUST NOT attempt to obtain the data via sources other than those explitly listend in the &lt;sources&gt; element. Furthermore, a client MUST NOT provide data to other users in a MIX/MUC, that was obtained via a <em>private</em> source from a SIMS message in a MIX/MUC.</p>
+    <p>If a MIX/MUC wants to enforce strong media access control, it MUST provide service at a JID that provides &xep0234; compatible, hash-based file retrieval. The MIX/MUC MUST enforce that only this service JID is mentioned in the &lt;sources&gt; element of SIMS messages it distributes and that the &lt;sources&gt; element has the 'private' attribute set to a value equivalent to <em>true</em>.
+    By limiting the use of Jingle File-Transfer for transport, the media provider will always know the JID of the requesting user and can verify if it is allowed to received the data or not. If so, it can provide the data via one of many transport mechanisms, including HTTP or SOCKS5 bytestreams. Direct HTTP download is not suitable, as there currently is no way to easily authenticate the HTTP request with the JID requesting the media.</p>
+    <p class='box'><pre>
+########## TODO ############
+Specify a method for clients to discover how they MUST share media in the MUC/MIX.
+
+Things that need to be discovered:
+  List of JIDs that MUST be used for media upload. JIDs that either respond have
+  the 'urn:xmpp:http:upload' feature or the 'urn:xmpp:jingle:apps:file-transfer:4'
+  feature.
+
+  A private SIMS feature flag, that if present indicates that the service does not
+  allow sharing of media hosted at other sources.
+
+  Per room/channel? Per service?
+
+Discovery in MIX:
+
+Discovery in MUC:
+    </pre>
+    </p>
+    <p>After the lookup of mandated media submission endpoints, a client first uploads the media file to the respective service. Now the endpoint MAY check the media for malicious code or other requirements. Finally, the user's client can send the SIMS message to the MUC/MIX with the Jingle File-Transfer compatible JIDs of the media submission endpoints as references in the &lt;sources&gt; element.</p>
   </section2>
   <section2 topic='Receiving a shared photo'>
     <p>On receive of a reference to a &lt;media-sharing&gt; element inside a message, a client SHOULD lookup in a local storage, whether the media with any of the proivded hashes has already
@@ -154,6 +245,47 @@ TODO:
     <p>Regardless of the transport method used to obtain the file, the received content MUST be verified against one of the hashes.
       If the verification fails, the retrieved contant MUST be discarded and retrieval using a different source can be attempted.</p>
   </section2>
+  <section2 topic='Publishing a rich-text microblogging post' anchor='usecases-microblogging'>
+    <p>WHen publishing a &xep0277; post, a user may want to attach media to the XHTML Atom post. The following example shows how the existing XEPs can be combined to achive this.</p>
+    <example caption='Publishing a rich-text microblogging post'><![CDATA[<iq from='romeo@montague.lit/pda'
+    id='pub1'
+    to='romeo@montague.lit'
+    type='set'>
+  <pubsub xmlns='http://jabber.org/protocol/pubsub'>
+    <publish node='urn:xmpp:microblog:0'>
+      <item id='1cb57d9c-1c46-11dd-838c-001143d5d5db'>
+        <entry xmlns='http://www.w3.org/2005/Atom'>
+          <title type='xhtml'>
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <p>Look this picture from last summit.</strong></p>
+              <img src="ni:///sha3-256;wqfDv8OGw7jCvx7Dl2ZRw4FHVsKgYcOWYsO14oKsw79Nw6Q7ScO64oCaw5gKS-KCrMO4Q0o" />
+            </div>
+          </title>
+          <id>tag:montague.lit,2008-05-08:posts-1cb57d9c-1c46-11dd-838c-001143d5d5db</id>
+          <published>2008-05-08T18:30:02Z</published>
+          <updated>2008-05-08T18:30:02Z</updated>
+            <media-sharing xmlns='urn:xmpp:sims:1'>
+            <file xmlns='urn:xmpp:jingle:apps:file-transfer:4'>
+              <media-type>image/jpeg</media-type>
+              <name>summit.jpg</name>
+              <size>3032449</size>
+              <hash xmlns='urn:xmpp:hashes:1' algo='sha3-256'>a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a</hash>
+              <hash xmlns='urn:xmpp:hashes:1' algo='id-blake2b256'>a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a</hash>
+              <desc>Photo from the summit.</desc>
+              <thumbnail xmlns='urn:xmpp:thumbs:1'uri='cid:sha1+ffd7c8d28e9c5e82afea41f97108c6b4@bob.xmpp.org' media-type='image/png' width='128' height='96'/>
+            </file>
+            <sources>
+              <reference xmlns='urn:xmpp:reference:0' type='data' uri='https://download.montague.lit/4a771ac1-f0b2-4a4a-9700-f2a26fa2bb67/summit.jpg' />
+              <reference xmlns='urn:xmpp:reference:0' type='data' uri='xmpp:romeo@montague.lit/resource?jingle-ft' />
+            </sources>
+          </media-sharing>
+        </entry>
+      </item>
+    </publish>
+  </pubsub>
+</iq>
+]]></example>
+  </section2>
 </section1>
 <section1 topic='Business Rules' anchor='rules'>
   <section2 topic='Transport Method Preference'>
@@ -162,7 +294,7 @@ TODO:
     <p>Using &xep0363; for media file transfer highly increases the UX, since the HTTP server has a higher availability than XMPP end-user clients and can easily handle the load of lots of requests that result from sharing media in &xep0045; and &xep0369; rooms.</p>
   </section2>
   <section2 topic='Media Support'>
-    <p>Sharing the raw data of media does not provide a complete user experience. Clients ideally need to be able to display the media inline of the chat. For this we set baseline requirements for audio, video and picture formats, that a client supports to display. These requrirements are shown in the following table.</p>
+    <p>Sharing the raw data of media does not provide a complete user experience. Clients ideally need to be able to display the media inline of the chat. For this we set baseline requirements for audio, video and picture formats, that a client supports to display. These requirements are shown in the following table.</p>
     <p>A client usually will always send in one format per media type, if it creates that media itself.</p>
     <table caption='Mandated encoding and in-line display support.'>
       <tr>
@@ -217,7 +349,10 @@ TODO:
   </section2>
   <section2 topic='Atomatic retrieval of shared media'>
     <p>Depending on the size of the shared media, a client MAY want to automatically download and display the media instead of fetching and displaying the thumbnail. The size threshold depends on the network environment the client currently runs in.</p>
-    <p>If a client supports automatic retrieval it MUST disclose this feature to the end user and provide a way to disable it, as it may result in high network traffic.</p>
+    <p>If a client supports automatic retrieval it MUST disclose this feature to the end user and provide a way to disable it, as it may result in high network traffic.</p><!-- sws: This seems like a UX issue and not something we should use a MUST on;
+then again, it makes a lot of sense; the protocol spec just doesn't
+seem like the place. Maybe this should be a RECOMMENDED?-->
+    <!--mention possible leakage of IP when automatically fetching media-->
   </section2>
   <section2 topic='MUC and MIX related rules'>
     <p>In cases where media is shared in a &xep0045; or &xep0369; room the sender has to expect that a large number of clients may retrieve the shared media automatically. Ideally multiple sources, including HTTP or other high availability sources, are provided in the &lt;sources&gt; tag of the &lt;media-sharing&gt; tag in case the media is shared in a MUC/MIX room.</p>
@@ -240,7 +375,7 @@ TODO:
     <reference xmlns='urn:xmpp:reference:0' begin='17' end='20' type='data'>
       <media-sharing xmlns='urn:xmpp:sims:1'>
         <file xmlns='urn:xmpp:jingle:apps:file-transfer:4'>
-          <media-type>image/jpeg</media>
+          <media-type>image/jpeg</media-type>
           <name>summit.jpg</name>
           <size>3032449</size>
           <hash xmlns='urn:xmpp:hashes:1' algo='sha3-256'>a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a</hash>
@@ -258,6 +393,17 @@ TODO:
     <p class='box'>Note: that ni URIs use a Base64URL encoding for the hash value and &xep0300; uses a hexencoding.</p>
     <p>This way the client can aquire the content addressable resource mentioned in the img-tag in the XHTML-IM message, and when finished show in in the rendered XHTML-IM message.</p>
   </section2>
+  <section2 topic='HTTP File Upload related rules'>
+    <p>A server supporting &xep0363; MAY want to hash the stored media files and make them available at &rfc6920; compatible well-known URI on the same domain, see section 4 of &rfc6920;.</p>
+  </section2>
+</section1>
+<section1 topic='Determining Support' anchor='support'>
+  <section2 topic='Client Support'>
+    <p>To advertise its support for the SIMS, when replying to service discovery information ("disco#info") requests an entity MUST return URNs for any version of this protocol that the entity supports -- e.g., "urn:xmpp:sims:1" for this version (see Namespace Versioning regarding the possibility of incrementing the version number).</p>
+  </section2>
+  <section2 topic='MUC/MIX Support'>
+    <p>To support strong access control to shared media, a &xep0045; room or a &xep0369; channel can advertise mandated media-sharing transport endpoint where clients MUST upload their shared media to, and allowed transport mechanims that a client MUST used in the sims stanzas send to the room/channel. This is to allow a service to check shared media for malicious data, and to enable strong access control for shared media.</p>
+  </section2>
 </section1>
 <section1 topic='Implementation Notes' anchor='impl'>
   <p></p>
@@ -268,6 +414,9 @@ TODO:
   <p>The desc element in the file element is criticial for clients to enable them to provide accessibility to users who use screen readers.</p>
 </section1>
 <section1 topic='Internationalization Considerations' anchor='i18n'>
+  <!-- XML lang and file description text -->
+  pover fuun sped
+
   <p>OPTIONAL.</p>
 </section1>
 <section1 topic='Security Considerations' anchor='security'>
@@ -279,10 +428,10 @@ TODO:
   </section2>
 </section1>
 <section1 topic='Acknowledgements' anchor='ack'>
-  <p>Thanks to Kim Alvefur, Emmanuel Gil Peyrot, Kevin Smith, and Nicolas Vérité for their helpful comments.</p>
+  <p>Thanks to Kim Alvefur, Emmanuel Gil Peyrot, Florian Schmaus, Kevin Smith, Nicolas Vérité, and Sam Whithed for their helpful comments.</p>
 </section1>
 <section1 topic='IANA Considerations' anchor='iana'>
-  <p>REQUIRED.</p>
+  <p>This document requires no interaction with &IANA;.</p>
 </section1>
 <section1 topic='XMPP Registrar Considerations' anchor='registrar'>
   <p>The &REGISTRAR; includes the following information in its registries.</p>
